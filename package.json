@@ -1,0 +1,31 @@
+{
+  "name": "billy-bass-ai",
+  "version": "1.0.0",
+  "description": "AI-powered interactive Billy Big Mouth Bass using Raspberry Pi",
+  "main": "billy-bass.js",
+  "scripts": {
+    "start": "node billy-bass.js",
+    "test-motors": "node test-motors.js",
+    "test-audio": "node test-audio.js"
+  },
+  "keywords": [
+    "raspberry-pi",
+    "robotics",
+    "billy-bass",
+    "ai",
+    "anthropic"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "openai": "^4.68.4",
+    "onoff": "^6.0.3",
+    "i2c-bus": "^5.2.3",
+    "sox-audio": "^0.3.0"
+  },
+  "devDependencies": {}
+}

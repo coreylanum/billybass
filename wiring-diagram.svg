@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 900" width="800" height="900">
+  <defs>
+    <style>
+      .component { fill: #e8f4f8; stroke: #2c3e50; stroke-width: 2; }
+      .wire { stroke-width: 2; fill: none; }
+      .red-wire { stroke: #e74c3c; }
+      .black-wire { stroke: #2c3e50; }
+      .blue-wire { stroke: #3498db; }
+      .green-wire { stroke: #27ae60; }
+      .yellow-wire { stroke: #f39c12; }
+      .text-label { font-family: Arial, sans-serif; font-size: 14px; fill: #2c3e50; }
+      .text-title { font-family: Arial, sans-serif; font-size: 18px; font-weight: bold; fill: #2c3e50; }
+      .text-small { font-family: Arial, sans-serif; font-size: 11px; fill: #555; }
+      .motor { fill: #95a5a6; stroke: #2c3e50; stroke-width: 2; }
+      .button { fill: #e74c3c; stroke: #c0392b; stroke-width: 2; }
+    </style>
+  </defs>
+  
+  <!-- Title -->
+  <text x="400" y="30" class="text-title" text-anchor="middle">Billy Bass Wiring Diagram</text>
+  
+  <!-- Power Supply -->
+  <rect x="50" y="60" width="120" height="80" class="component"/>
+  <text x="110" y="90" class="text-label" text-anchor="middle">Power Supply</text>
+  <text x="110" y="110" class="text-small" text-anchor="middle">7.4V LiPo or</text>
+  <text x="110" y="125" class="text-small" text-anchor="middle">6-12V DC</text>
+  
+  <!-- Power Wires -->
+  <line x1="110" y1="140" x2="110" y2="200" class="wire red-wire"/>
+  <text x="120" y="170" class="text-small">+</text>
+  
+  <!-- 4WD Robot Hat -->
+  <rect x="250" y="200" width="300" height="150" class="component"/>
+  <text x="400" y="230" class="text-title" text-anchor="middle">4WD Robot Hat (CKK0018)</text>
+  <text x="400" y="250" class="text-small" text-anchor="middle">I2C Address: 0x14</text>
+  
+  <!-- Motor Outputs on Hat -->
+  <rect x="270" y="270" width="50" height="30" class="component"/>
+  <text x="295" y="290" class="text-small" text-anchor="middle">M1</text>
+  
+  <rect x="340" y="270" width="50" height="30" class="component"/>
+  <text x="365" y="290" class="text-small" text-anchor="middle">M2</text>
+  
+  <rect x="410" y="270" width="50" height="30" class="component"/>
+  <text x="435" y="290" class="text-small" text-anchor="middle">M3</text>
+  
+  <rect x="480" y="270" width="50" height="30" class="component"/>
+  <text x="505" y="290" class="text-small" text-anchor="middle">M4</text>
+  
+  <!-- Power Input on Hat -->
+  <rect x="270" y="310" width="40" height="25" class="component"/>
+  <text x="290" y="327" class="text-small" text-anchor="middle">PWR</text>
+  
+  <!-- Power wire to hat -->
+  <line x1="110" y1="200" x2="290" y2="310" class="wire red-wire"/>
+  
+  <!-- Raspberry Pi (under hat) -->
+  <rect x="270" y="380" width="260" height="100" class="component"/>
+  <text x="400" y="410" class="text-title" text-anchor="middle">Raspberry Pi</text>
+  <text x="400" y="430" class="text-small" text-anchor="middle">40-pin GPIO</text>
+  <text x="400" y="450" class="text-small" text-anchor="middle">(Hat stacks on top)</text>
+  
+  <!-- Connection line showing hat on top of Pi -->
+  <path d="M 400 350 L 400 380" class="wire blue-wire" stroke-dasharray="5,5"/>
+  <text x="410" y="370" class="text-small">Stacks on GPIO</text>
+  
+  <!-- USB Audio Interface -->
+  <rect x="580" y="380" width="150" height="80" class="component"/>
+  <text x="655" y="410" class="text-label" text-anchor="middle">USB Audio</text>
+  <text x="655" y="430" class="text-small" text-anchor="middle">Interface</text>
+  
+  <!-- USB connection -->
+  <line x1="530" y1="420" x2="580" y2="420" class="wire blue-wire"/>
+  <text x="540" y="415" class="text-small">USB</text>
+  
+  <!-- Mic and Speaker connections -->
+  <line x1="655" y1="460" x2="655" y2="520" class="wire green-wire"/>
+  <text x="665" y="490" class="text-small">Mic In</text>
+  
+  <line x1="680" y1="460" x2="680" y2="550" class="wire yellow-wire"/>
+  <text x="690" y="505" class="text-small">Speaker</text>
+  
+  <!-- Billy Bass Speaker -->
+  <ellipse cx="680" cy="580" rx="40" ry="25" class="component"/>
+  <text x="680" y="585" class="text-small" text-anchor="middle">Speaker</text>
+  
+  <!-- Button -->
+  <circle cx="120" cy="440" r="30" class="button"/>
+  <text x="120" y="445" class="text-label" text-anchor="middle" fill="white">BTN</text>
+  
+  <!-- Button wires to Pi -->
+  <line x1="150" y1="440" x2="270" y2="440" class="wire blue-wire"/>
+  <text x="200" y="435" class="text-small">GPIO 17</text>
+  
+  <line x1="120" y1="470" x2="120" y2="510" class="wire black-wire"/>
+  <line x1="120" y1="510" x2="270" y2="450" class="wire black-wire"/>
+  <text x="180" y="485" class="text-small">GND</text>
+  
+  <!-- Body Motor -->
+  <circle cx="295" cy="650" r="35" class="motor"/>
+  <text x="295" y="655" class="text-label" text-anchor="middle" fill="white">M1</text>
+  <text x="295" y="700" class="text-small" text-anchor="middle">Body Motor</text>
+  <text x="295" y="715" class="text-small" text-anchor="middle">(Turns fish)</text>
+  
+  <!-- Motor 1 wires -->
+  <line x1="295" y1="300" x2="295" y2="615" class="wire red-wire"/>
+  <line x1="310" y1="300" x2="310" y2="615" class="wire black-wire"/>
+  
+  <!-- Mouth Motor -->
+  <circle cx="400" cy="650" r="35" class="motor"/>
+  <text x="400" y="655" class="text-label" text-anchor="middle" fill="white">M2</text>
+  <text x="400" y="700" class="text-small" text-anchor="middle">Mouth Motor</text>
+  <text x="400" y="715" class="text-small" text-anchor="middle">(Open/Close)</text>
+  
+  <!-- Motor 2 wires -->
+  <line x1="365" y1="300" x2="385" y2="615" class="wire red-wire"/>
+  <line x1="380" y1="300" x2="415" y2="615" class="wire black-wire"/>
+  
+  <!-- Tail Motor -->
+  <circle cx="505" cy="650" r="35" class="motor"/>
+  <text x="505" y="655" class="text-label" text-anchor="middle" fill="white">M3</text>
+  <text x="505" y="700" class="text-small" text-anchor="middle">Tail Motor</text>
+  <text x="505" y="715" class="text-small" text-anchor="middle">(Wagging)</text>
+  
+  <!-- Motor 3 wires -->
+  <line x1="435" y1="300" x2="490" y2="615" class="wire red-wire"/>
+  <line x1="450" y1="300" x2="520" y2="615" class="wire black-wire"/>
+  
+  <!-- Billy Bass Illustration -->
+  <ellipse cx="400" cy="800" rx="200" ry="60" class="component"/>
+  <text x="400" y="810" class="text-title" text-anchor="middle">🐟 Billy Bass Shell 🐟</text>
+  <text x="400" y="830" class="text-small" text-anchor="middle">(Motors mounted inside)</text>
+  
+  <!-- Connection labels -->
+  <rect x="20" y="850" width="760" height="40" fill="#f8f9fa" stroke="#ccc"/>
+  <text x="30" y="870" class="text-small">Notes:</text>
+  <text x="30" y="885" class="text-small">• Red wires = Motor positive (+) • Black wires = Motor negative (-) • Blue = GPIO signals</text>
+  
+</svg>
