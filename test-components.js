@@ -42,7 +42,7 @@ async function testI2C() {
   
   try {
     const i2c = require('i2c-bus');
-    const bus = i2c.openSync(1);
+    const bus = i2c.openSync(20);
     
     log(colors.green, '✓ I2C bus opened successfully');
     
@@ -82,43 +82,37 @@ async function testButton() {
   log(colors.cyan, '\n=== Testing Button (GPIO 17) ===');
   
   try {
-    const Gpio = require('onoff').Gpio;
-    const button = new Gpio(17, 'in', 'both', { debounceTimeout: 200 });
+    const { Chip } = require('node-libgpiod');
+    const chip = new Chip(0);
+    const button = chip.getLine(17);
+    button.requestInputMode();
     
     log(colors.green, '✓ GPIO initialized');
     log(colors.yellow, '\nPress the button 3 times (you have 10 seconds)...');
     
     let pressCount = 0;
+    let lastValue = 1; // Start assuming button not pressed (pull-up)
     const target = 3;
+    const startTime = Date.now();
     
-    const watchPromise = new Promise((resolve) => {
-      button.watch((err, value) => {
-        if (err) {
-          log(colors.red, '✗ Button error: ' + err.message);
-          resolve(false);
-          return;
-        }
-        
-        if (value === 1) {
-          pressCount++;
-          log(colors.green, `✓ Button press detected! (${pressCount}/${target})`);
-          
-          if (pressCount >= target) {
-            resolve(true);
-          }
-        }
-      });
-    });
+    while (Date.now() - startTime < 10000 && pressCount < target) {
+      const value = button.getValue();
+      
+      // Detect falling edge (button press with pull-up resistor)
+      if (value === 0 && lastValue === 1) {
+        pressCount++;
+        log(colors.green, `✓ Button press detected! (${pressCount}/${target})`);
+        await sleep(200); // Debounce
+      }
+      
+      lastValue = value;
+      await sleep(50); // Poll interval
+    }
     
-    const timeoutPromise = new Promise((resolve) => {
-      setTimeout(() => resolve(false), 10000);
-    });
+    button.release();
+    chip.close();
     
-    const success = await Promise.race([watchPromise, timeoutPromise]);
-    
-    button.unexport();
-    
-    if (success) {
+    if (pressCount >= target) {
       log(colors.green, '✓ Button test passed!');
     } else {
       log(colors.red, '✗ Button test failed - not enough presses detected');
@@ -138,7 +132,7 @@ async function testMotors() {
   
   try {
     const i2c = require('i2c-bus');
-    const bus = i2c.openSync(1);
+    const bus = i2c.openSync(20);
     const address = 0x14;
     
     log(colors.green, '✓ Connected to Robot Hat');
@@ -201,7 +195,7 @@ async function testAudioRecording() {
     log(colors.yellow, 'Recording 3 seconds of audio...');
     log(colors.yellow, 'Say something into the microphone!');
     
-    const record = spawn('arecord', ['-d', '3', '-D', 'hw:3,0', '-f', 'cd', testFile]);
+    const record = spawn('arecord', ['-D', 'hw:3,0', '-d', '3', '-f', 'cd', testFile]);
     
     await new Promise((resolve, reject) => {
       record.on('close', (code) => {

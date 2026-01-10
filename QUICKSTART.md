@@ -29,7 +29,7 @@ sudo raspi-config
 ```bash
 # System packages
 sudo apt update
-sudo apt install -y git libasound2-dev sox libsox-fmt-all i2c-tools alsa-utils espeak
+sudo apt install -y git libasound2-dev sox libsox-fmt-all i2c-tools alsa-utils libgpiod-dev gpiod
 
 # Node.js
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
@@ -46,17 +46,12 @@ npm install
 arecord -l  # Note the card number for microphone
 aplay -l    # Note the card number for speaker
 
-# Create audio config (replace X and Y with your card numbers)
-cat > ~/.asoundrc << EOF
-pcm.!default {
-    type asym
-    playback.pcm "plughw:X,0"
-    capture.pcm "plughw:Y,0"
-}
-EOF
+# The code uses hw:3,0 by default
+# If different, edit billy-bass.js and change:
+#   device: 'hw:3,0'
 
 # Test it
-arecord -d 3 test.wav && aplay test.wav
+arecord -D hw:3,0 -d 3 test.wav && aplay test.wav
 ```
 
 ### Set API Keys:
@@ -110,7 +105,7 @@ Expected output:
 ### No motor movement?
 ```bash
 # Check I2C
-i2cdetect -y 1  # Should show 0x14
+i2cdetect -y 20  # Should show 0x14
 
 # Check power
 # Verify 6-12V on Robot Hat power terminal

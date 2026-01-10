@@ -63,7 +63,7 @@ M3 (Motor 3) → Tail Motor (wagging)
 sudo apt update && sudo apt upgrade -y
 
 # Install required system packages
-sudo apt install -y git libasound2-dev sox libsox-fmt-all i2c-tools alsa-utils
+sudo apt install -y git libasound2-dev sox libsox-fmt-all i2c-tools alsa-utils libgpiod-dev gpiod
 ```
 
 ### 2. Enable I2C
@@ -74,7 +74,7 @@ sudo raspi-config
 # Navigate to: Interface Options → I2C → Enable → Reboot
 
 # After reboot, verify I2C is working
-i2cdetect -y 1
+i2cdetect -y 20
 # You should see address 0x14 (or similar) for the Robot Hat
 ```
 
@@ -85,17 +85,12 @@ i2cdetect -y 1
 arecord -l   # Find your USB mic card number
 aplay -l     # Find your USB speaker card number
 
-# Set default audio device (replace X with your card numbers)
-cat > ~/.asoundrc << EOF
-pcm.!default {
-    type asym
-    playback.pcm "plughw:X,0"
-    capture.pcm "plughw:Y,0"
-}
-EOF
+# The code is configured for hw:3,0
+# If your device is different, update billy-bass.js:
+#   device: 'hw:3,0'  // Change to your card number
 
-# Test microphone
-arecord -d 3 test.wav
+# Test microphone with your device
+arecord -D hw:3,0 -d 3 test.wav
 aplay test.wav
 ```
 
@@ -317,7 +312,7 @@ sudo systemctl status billy-bass.service
 ## 🐛 Troubleshooting
 
 ### Motors Not Working
-- Check I2C connection: `i2cdetect -y 1`
+- Check I2C connection: `i2cdetect -y 20`
 - Verify power supply voltage (6-12V)
 - Test individual motors with test script
 - Check motor wire polarity (swap if backwards)
@@ -341,7 +336,8 @@ sudo systemctl status billy-bass.service
 ### I2C Device Not Found
 - Enable I2C in raspi-config
 - Check physical connection of Robot Hat
-- Try different I2C address: `i2cdetect -y 1`
+- Try different I2C buses: `i2cdetect -l` to list all buses
+- Your system uses bus 20: `i2cdetect -y 20`
 
 ## 📚 Additional Resources
 

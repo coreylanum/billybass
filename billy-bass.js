@@ -2,11 +2,15 @@
 // Requires Node.js 18+ on Raspberry Pi
 
 const Anthropic = require('@anthropic-ai/sdk');
-const Gpio = require('onoff').Gpio;
+const { Chip, Line } = require('node-libgpiod');
 const i2c = require('i2c-bus');
+const recorder = require('node-record-lpcm16');
 const fs = require('fs');
-const { spawn } = require('child_process');
+const { Readable } = require('stream');
+const Speaker = require('speaker');
 const OpenAI = require('openai'); // For Whisper speech-to-text
+const say = require('say'); // For text-to-speech
+const { spawn } = require('child_process');
 
 // ============================================================================
 // CONFIGURATION
@@ -21,7 +25,7 @@ const CONFIG = {
   BUTTON_PIN: 17, // GPIO 17 (Physical Pin 11)
   
   // I2C Configuration for 4WD Robot Hat
-  I2C_BUS: 1,
+  I2C_BUS: 20,
   I2C_ADDRESS: 0x14, // Default address for CKK0018
   
   // Motor Channels (on Robot Hat)
@@ -145,34 +149,36 @@ class AudioManager {
     return new Promise((resolve, reject) => {
       console.log(`🎤 Recording for ${duration}ms...`);
       
-      // Use arecord directly for more reliable recording on Raspberry Pi
-      const durationSeconds = Math.ceil(duration / 1000);
-      const record = spawn('arecord', [
-        '-D', 'hw:3,0',
-        '-f', 'S16_LE',
-        '-r', CONFIG.AUDIO_SAMPLE_RATE.toString(),
-        '-c', '1',
-        '-d', durationSeconds.toString(),
-        CONFIG.AUDIO_TEMP_FILE
-      ]);
-      
-      let errorOutput = '';
-      
-      record.stderr.on('data', (data) => {
-        errorOutput += data.toString();
+      const recording = recorder.record({
+        sampleRate: CONFIG.AUDIO_SAMPLE_RATE,
+        channels: 1,
+        audioType: 'wav',
+        silence: '2.0', // Stop after 2 seconds of silence
+        threshold: 0.5,
+        device: 'hw:3,0' // Hard-coded USB audio device
       });
       
-      record.on('close', (code) => {
-        if (code === 0) {
-          console.log('✓ Recording complete');
-          resolve(CONFIG.AUDIO_TEMP_FILE);
-        } else {
-          console.error('✗ Recording failed:', errorOutput);
-          reject(new Error(`Recording failed with code ${code}`));
-        }
+      const audioFile = fs.createWriteStream(CONFIG.AUDIO_TEMP_FILE, { encoding: 'binary' });
+      this.recordingStream = recording.stream();
+      
+      this.recordingStream.pipe(audioFile);
+      this.isRecording = true;
+      
+      // Stop recording after duration
+      const timeout = setTimeout(() => {
+        recording.stop();
+      }, duration);
+      
+      this.recordingStream.on('close', () => {
+        clearTimeout(timeout);
+        this.isRecording = false;
+        console.log('✓ Recording complete');
+        resolve(CONFIG.AUDIO_TEMP_FILE);
       });
       
-      record.on('error', (error) => {
+      this.recordingStream.on('error', (error) => {
+        clearTimeout(timeout);
+        this.isRecording = false;
         console.error('✗ Recording error:', error);
         reject(error);
       });
@@ -198,41 +204,19 @@ class AudioManager {
     }
   }
   
-  // Generate speech from text using espeak
+  // Generate speech from text using system TTS
   async textToSpeech(text) {
     return new Promise((resolve, reject) => {
       console.log('🗣️  Generating speech...');
       
-      // Use espeak for text-to-speech (built into most Raspberry Pi OS)
-      // Alternative: Use pico2wave if installed
-      const espeak = spawn('espeak', [
-        '-s', '150',  // Speed (words per minute)
-        '-p', '50',   // Pitch (0-99)
-        '-a', '200',  // Amplitude (volume, 0-200)
-        '-w', CONFIG.TTS_OUTPUT_FILE,  // Output to wav file
-        text
-      ]);
-      
-      let errorOutput = '';
-      
-      espeak.stderr.on('data', (data) => {
-        errorOutput += data.toString();
-      });
-      
-      espeak.on('close', (code) => {
-        if (code === 0) {
+      say.export(text, 'Alex', 0.7, CONFIG.TTS_OUTPUT_FILE, (error) => {
+        if (error) {
+          console.error('✗ TTS error:', error);
+          reject(error);
+        } else {
           console.log('✓ Speech generated');
           resolve(CONFIG.TTS_OUTPUT_FILE);
-        } else {
-          console.error('✗ TTS error:', errorOutput);
-          reject(new Error(`TTS failed with code ${code}`));
         }
-      });
-      
-      espeak.on('error', (error) => {
-        console.error('✗ TTS error:', error);
-        console.log('💡 Install espeak: sudo apt install espeak');
-        reject(error);
       });
     });
   }
@@ -313,11 +297,13 @@ class FishAI {
 
 class BillyBass {
   constructor() {
-    this.button = new Gpio(CONFIG.BUTTON_PIN, 'in', 'rising', { debounceTimeout: 200 });
+    this.chip = new Chip(0); // GPIO chip 0
+    this.button = this.chip.getLine(CONFIG.BUTTON_PIN);
     this.robotHat = new RobotHat(CONFIG.I2C_BUS, CONFIG.I2C_ADDRESS);
     this.audioManager = new AudioManager();
     this.fishAI = new FishAI();
     this.isProcessing = false;
+    this.buttonWatcher = null;
   }
   
   // Initialize all systems
@@ -330,16 +316,16 @@ class BillyBass {
       return false;
     }
     
-    // Set up button interrupt
-    this.button.watch((err, value) => {
-      if (err) {
-        console.error('Button error:', err);
-        return;
-      }
-      if (value === 1 && !this.isProcessing) {
+    // Configure button as input with pull-up
+    this.button.requestInputMode();
+    
+    // Set up button monitoring with polling (gpiod doesn't have native watch)
+    this.buttonWatcher = setInterval(() => {
+      const value = this.button.getValue();
+      if (value === 0 && !this.isProcessing) { // Button pressed (active low with pull-up)
         this.handleButtonPress();
       }
-    });
+    }, 100); // Poll every 100ms
     
     console.log('✓ Button monitoring started');
     console.log('\n🎣 Billy Bass is ready! Press the button to start.\n');
@@ -484,9 +470,17 @@ class BillyBass {
   async shutdown() {
     console.log('\n🛑 Shutting down Billy Bass...');
     
+    // Stop button monitoring
+    if (this.buttonWatcher) {
+      clearInterval(this.buttonWatcher);
+    }
+    
     this.robotHat.stopAll();
     this.robotHat.close();
-    this.button.unexport();
+    
+    // Release GPIO resources
+    this.button.release();
+    this.chip.close();
     
     // Clean up temp files
     try {

@@ -23,9 +23,11 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
     "openai": "^4.68.4",
-    "onoff": "^6.0.3",
+    "node-libgpiod": "^0.3.0",
     "i2c-bus": "^5.2.3",
-    "sox-audio": "^0.3.0"
+    "node-record-lpcm16": "^1.0.1",
+    "speaker": "^0.5.4",
+    "say": "^0.16.0"
   },
   "devDependencies": {}
 }
