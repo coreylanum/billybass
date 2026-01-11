@@ -243,7 +243,7 @@ Edit the `CONFIG` section in `billy-bass.js`:
 const CONFIG = {
   // Motor Speeds (0-100)
   BODY_TURN_SPEED: 60,      // Body rotation speed
-  BODY_TURN_DURATION: 2000, // How long to turn (ms)
+  BODY_TURN_DURATION: 1000, // How long to turn (ms) - ADJUST to match your fish!
   MOUTH_SPEED: 70,          // Mouth movement speed
   TAIL_SPEED: 50,           // Tail wagging speed
   
@@ -259,6 +259,8 @@ const CONFIG = {
   AI_SYSTEM_PROMPT: `You are Billy Bass, a wise-cracking animatronic fish...`
 };
 ```
+
+**Important:** Adjust `BODY_TURN_DURATION` so the motor stops BEFORE hitting the physical limit. Start with 1000ms (1 second) and adjust based on your fish's mechanics. If you hear grinding, reduce the duration!
 
 ### Change TTS Voice
 

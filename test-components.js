@@ -79,7 +79,7 @@ async function testI2C() {
 // Test GPIO Button
 // ============================================================================
 async function testButton() {
-  log(colors.cyan, '\n=== Testing Button (GPIO 17) ===');
+  log(colors.cyan, '\n=== Testing Button (GPIO 5) ===');
   
   try {
     const { spawn } = require('child_process');
@@ -93,7 +93,7 @@ async function testButton() {
     const startTime = Date.now();
     
     const checkButton = setInterval(() => {
-      const gpio = spawn('gpioget', ['gpiochip0', '17']);
+      const gpio = spawn('gpioget', ['gpiochip0', '5']);
       
       gpio.stdout.on('data', (data) => {
         const value = parseInt(data.toString().trim());
@@ -115,7 +115,7 @@ async function testButton() {
           log(colors.green, '✓ Button test passed!');
         } else {
           log(colors.red, '✗ Button test failed - not enough presses detected');
-          log(colors.yellow, '  Check button wiring to GPIO 17 (Pin 11)');
+          log(colors.yellow, '  Check button wiring to GPIO 5 (Pin 29)');
         }
       }
     }, 100);

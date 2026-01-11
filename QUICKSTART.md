@@ -157,11 +157,11 @@ Edit `billy-bass.js` CONFIG section:
 const CONFIG = {
   // Speed adjustments (0-100)
   BODY_TURN_SPEED: 60,      // Rotation speed
+  BODY_TURN_DURATION: 1000, // Turn time (ms) - ADJUST to match your fish!
   MOUTH_SPEED: 70,          // Mouth animation
   TAIL_SPEED: 50,           // Tail wagging
   
   // Timing
-  BODY_TURN_DURATION: 2000, // Turn time (ms)
   AUDIO_RECORDING_DURATION: 5000, // Listen time (ms)
   
   // Text-to-Speech Voice
@@ -172,6 +172,8 @@ const CONFIG = {
   AI_SYSTEM_PROMPT: `You are Billy Bass...`
 };
 ```
+
+**⚠️ Important:** Adjust `BODY_TURN_DURATION` to prevent grinding! Start at 1000ms and reduce if you hear the motor hitting its limit.
 
 **TTS Voice Options:**
 - `alloy` - Neutral, balanced

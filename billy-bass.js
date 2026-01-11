@@ -16,7 +16,7 @@ const CONFIG = {
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   
   // GPIO Configuration
-  BUTTON_PIN: 17, // GPIO 17 (Physical Pin 11)
+  BUTTON_PIN: 5, // GPIO 5 (Physical Pin 29) - GPIO 17 is used by body motor!
   
   // Motor Control GPIO Pins (DRV8833 drivers)
   // Body Motor = Motor A1 (DRV8833 #1)
@@ -36,7 +36,7 @@ const CONFIG = {
   
   // Motor Speeds (0-100)
   BODY_TURN_SPEED: 60,
-  BODY_TURN_DURATION: 2000, // ms
+  BODY_TURN_DURATION: 1000, // ms - reduced to prevent grinding at physical limit
   MOUTH_SPEED: 70,
   TAIL_SPEED: 50,
   
