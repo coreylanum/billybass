@@ -70,26 +70,28 @@ Motor 4 (M4) - UNUSED (available for expansion)
 **Option A: Using Original Billy Bass Button**
 ```
 Original Button → Desolder from original circuit
-├─ Button Terminal 1 → GPIO 17 (Pin 11)
-└─ Button Terminal 2 → Ground (Pin 9)
+├─ Button Terminal 1 → GPIO 5 (Pin 29)
+└─ Button Terminal 2 → Ground (Pin 30)
 ```
 
 **Option B: External Button (if original not usable)**
 ```
 ┌────────────────────────────────────┐
 │                                    │
-│  GPIO 17 (Pin 11) ─────┐          │
+│  GPIO 5 (Pin 29) ──────┐          │
 │                        │          │
 │                    ┌───┴───┐      │
 │                    │ Button│      │
 │                    └───┬───┘      │
 │                        │          │
-│  Ground (Pin 9) ───────┘          │
+│  Ground (Pin 30) ──────┘          │
 │                                    │
 └────────────────────────────────────┘
 ```
 
 The script uses internal pull-up resistor, so no external resistor needed.
+
+**Note:** GPIO 17 is used by the body motor driver and cannot be used for the button.
 
 ### 4. USB Audio Interface
 
@@ -164,24 +166,31 @@ Raspberry Pi USB Port → USB Audio Interface
 
 | Component | Connection | Pin # | GPIO | Notes |
 |-----------|-----------|-------|------|-------|
-| Button | GPIO Input | 11 | GPIO17 | Internal pull-up enabled |
-| Ground | Button GND | 9 | GND | Common ground |
-| 4WD Hat | I2C SDA | 3 | GPIO2 | Auto-configured |
-| 4WD Hat | I2C SCL | 5 | GPIO3 | Auto-configured |
-| Body Motor | Motor 1 | Hat M1 | - | Via Robot Hat |
-| Mouth Motor | Motor 2 | Hat M2 | - | Via Robot Hat |
-| Tail Motor | Motor 3 | Hat M3 | - | Via Robot Hat |
-| USB Audio | USB Port | - | - | Auto-detected as audio device |
+| Button | GPIO Input | 29 | GPIO5 | Internal pull-up enabled |
+| Ground | Button GND | 30 | GND | Common ground |
+| Body Motor | Direction 1 | 11 | GPIO17 | Via Robot Hat AN11 |
+| Body Motor | Direction 2 | 13 | GPIO27 | Via Robot Hat AN12 |
+| Body Motor | Enable/PWM | 32 | GPIO12 | NSLEEP1 |
+| Mouth Motor | Direction 1 | 15 | GPIO22 | Via Robot Hat BN11 |
+| Mouth Motor | Direction 2 | 16 | GPIO23 | Via Robot Hat BN12 |
+| Tail Motor | Direction 1 | 18 | GPIO24 | Via Robot Hat AN21 |
+| Tail Motor | Direction 2 | 22 | GPIO25 | Via Robot Hat AN22 |
+| Tail Motor | Enable/PWM | 33 | GPIO13 | NSLEEP2 |
+| USB Audio | USB Port | - | - | Auto-detected as hw:3,0 |
 
 ## Setup Notes
 
 1. **Motor Control**: Uses GPIO pins directly with DRV8833 motor drivers (not I2C!)
 2. **GPIO Tools**: Uses `gpiod` command-line tools (gpioget, gpioset) for GPIO access
-3. **Audio Device**: Hard-coded to hw:3,0 - adjust in code if your device differs
-4. **Text-to-Speech**: OpenAI TTS API with selectable voices (onyx, alloy, echo, fable, nova, shimmer)
-5. **Motor Speeds**: Currently full speed (PWM pins held HIGH). For variable speed, hardware PWM needed
-6. **Button**: GPIO 17 with internal pull-up (active-low)
-7. **Power**: Ensure power supply can handle motor current draw (typically 1-2A total)
+3. **Button GPIO**: GPIO 5 (Pin 29) - GPIO 17 is used by body motor, not available for button
+4. **Audio Recording**: Uses `arecord` directly (CD quality: 44.1kHz) for reliable capture
+5. **Audio Device**: Hard-coded to hw:3,0 for recording - adjust in code if your device differs
+6. **Audio Playback**: Uses `mpg123` for MP3 files (OpenAI TTS output)
+7. **Audio Duration**: Uses `ffprobe` (from ffmpeg) to get exact MP3 duration for animation timing
+8. **Text-to-Speech**: OpenAI TTS API with selectable voices (onyx, alloy, echo, fable, nova, shimmer)
+9. **Motor Position Holding**: Body motor stays energized during interaction to hold fish position
+10. **Motor Speeds**: Currently full speed (PWM pins held HIGH). For variable speed, hardware PWM needed
+11. **Power**: Ensure power supply can handle motor current draw (typically 1-2A total)
 
 ## Safety Considerations
 

@@ -2,7 +2,6 @@
 // Requires Node.js 18+ on Raspberry Pi
 
 const Anthropic = require('@anthropic-ai/sdk');
-const recorder = require('node-record-lpcm16');
 const fs = require('fs');
 const { spawn } = require('child_process');
 const OpenAI = require('openai'); // For Whisper speech-to-text and TTS
@@ -42,7 +41,6 @@ const CONFIG = {
   TAIL_SPEED: 50,
   
   // Audio Configuration
-  AUDIO_SAMPLE_RATE: 16000,
   AUDIO_RECORDING_DURATION: 5000, // ms - maximum recording time
   AUDIO_TEMP_FILE: '/tmp/billy_bass_recording.wav',
   TTS_OUTPUT_FILE: '/tmp/billy_bass_response.mp3',
@@ -198,50 +196,40 @@ class AudioManager {
   // Record audio from USB microphone
   async recordAudio(duration) {
     return new Promise((resolve, reject) => {
-      console.log(`🎤 Recording for ${duration}ms...`);
+      console.log(`🎤 Recording for ${duration / 1000} seconds...`);
       
-      const recording = recorder.record({
-        sampleRate: CONFIG.AUDIO_SAMPLE_RATE,
-        channels: 1,
-        audioType: 'wav',
-        device: 'hw:3,0' // Hard-coded USB audio device
-        // Removed silence detection - record full duration
-      });
+      // Use arecord directly (same as test-components.js which works)
+      const durationSeconds = Math.ceil(duration / 1000);
+      const arecord = spawn('arecord', [
+        '-D', 'hw:3,0',
+        '-d', String(durationSeconds),
+        '-f', 'cd',  // CD quality (44.1kHz, 16-bit, stereo)
+        CONFIG.AUDIO_TEMP_FILE
+      ]);
       
-      const audioFile = fs.createWriteStream(CONFIG.AUDIO_TEMP_FILE, { encoding: 'binary' });
-      this.recordingStream = recording.stream();
-      
-      this.recordingStream.pipe(audioFile);
       this.isRecording = true;
       
-      // Stop recording after duration
-      const timeout = setTimeout(() => {
-        recording.stop();
-      }, duration);
-      
-      // Wait for stream to fully close
-      audioFile.on('finish', () => {
-        clearTimeout(timeout);
-        this.isRecording = false;
-        console.log('✓ Recording complete');
-        
-        // Small delay to ensure file is fully written
-        setTimeout(() => {
-          resolve(CONFIG.AUDIO_TEMP_FILE);
-        }, 100);
+      arecord.stderr.on('data', (data) => {
+        // arecord outputs progress to stderr, ignore it
       });
       
-      this.recordingStream.on('error', (error) => {
-        clearTimeout(timeout);
+      arecord.on('close', (code) => {
+        this.isRecording = false;
+        
+        if (code === 0) {
+          console.log('✓ Recording complete');
+          // Small delay to ensure file is fully written
+          setTimeout(() => {
+            resolve(CONFIG.AUDIO_TEMP_FILE);
+          }, 100);
+        } else {
+          reject(new Error(`Recording failed with code ${code}`));
+        }
+      });
+      
+      arecord.on('error', (error) => {
         this.isRecording = false;
         console.error('✗ Recording error:', error);
-        reject(error);
-      });
-      
-      audioFile.on('error', (error) => {
-        clearTimeout(timeout);
-        this.isRecording = false;
-        console.error('✗ File write error:', error);
         reject(error);
       });
     });
@@ -494,7 +482,7 @@ class BillyBass {
     }
   }
   
-  // Turn the fish toward the user
+  // Turn the fish toward the user and HOLD position
   async turnTowardUser() {
     console.log('↻ Turning toward user...');
     
@@ -502,8 +490,9 @@ class BillyBass {
     
     await this.sleep(CONFIG.BODY_TURN_DURATION);
     
-    await this.motorController.stopMotor('body');
-    console.log('✓ Positioned\n');
+    // DON'T stop motor - keep it running to hold position
+    // Motor will be stopped in returnToIdle()
+    console.log('✓ Positioned (holding)\n');
   }
   
   // Listen for user speech
@@ -566,7 +555,11 @@ class BillyBass {
   async returnToIdle() {
     console.log('⏮️  Returning to idle position...');
     
-    // Turn back
+    // First stop the holding motor
+    await this.motorController.stopMotor('body');
+    await this.sleep(100); // Brief pause
+    
+    // Turn back (reverse direction)
     await this.motorController.setMotor('body', -CONFIG.BODY_TURN_SPEED);
     await this.sleep(CONFIG.BODY_TURN_DURATION);
     

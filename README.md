@@ -40,8 +40,10 @@ M3 (Motor 3) → Tail Motor (wagging)
 **Note:** If a motor runs backwards, swap its +/- wires.
 
 ### Step 3: Connect the Button
-- **Button wire 1** → GPIO 17 (Physical Pin 11)
-- **Button wire 2** → Ground (Physical Pin 9)
+- **Button wire 1** → GPIO 5 (Physical Pin 29)
+- **Button wire 2** → Ground (Physical Pin 30)
+
+**Important:** GPIO 17 is used by the body motor driver - use GPIO 5 for the button!
 
 ### Step 4: Connect USB Audio
 1. Plug USB audio interface into any USB port on the Pi

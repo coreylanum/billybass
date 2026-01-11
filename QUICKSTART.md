@@ -6,7 +6,7 @@
 ```
 Power Supply (6-12V) → Robot Hat Power Terminal
 Robot Hat → Stack on Raspberry Pi GPIO
-Button → GPIO 17 (Pin 11) + Ground (Pin 9)
+Button → GPIO 5 (Pin 29) + Ground (Pin 30)
 Body Motor → M1 on Robot Hat
 Mouth Motor → M2 on Robot Hat
 Tail Motor → M3 on Robot Hat
@@ -15,7 +15,9 @@ Microphone → USB Audio mic input
 Speaker → USB Audio speaker output (or Billy's original speaker)
 ```
 
-**⚠️ Important:** Do NOT connect USB power to Pi when using Robot Hat power!
+**⚠️ Important:** 
+- Do NOT connect USB power to Pi when using Robot Hat power!
+- Use GPIO 5 for button (GPIO 17 is used by body motor)
 
 ## 2. Software Setup (20 minutes)
 
@@ -116,8 +118,11 @@ gpioset gpiochip0 17=1
 ### Button not working?
 ```bash
 # Test GPIO
-gpio -g mode 17 in
-gpio -g read 17  # Changes when pressed
+gpio -g mode 5 in
+gpio -g read 5  # Changes when pressed
+
+# Or use gpioget
+gpioget gpiochip0 5  # Should be 1 when not pressed, 0 when pressed
 ```
 
 ### No audio?

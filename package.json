@@ -22,8 +22,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
-    "openai": "^4.68.4",
-    "node-record-lpcm16": "^1.0.1"
+    "openai": "^4.68.4"
   },
   "devDependencies": {}
 }
