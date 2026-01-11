@@ -2,15 +2,11 @@
 // Requires Node.js 18+ on Raspberry Pi
 
 const Anthropic = require('@anthropic-ai/sdk');
-const { Chip, Line } = require('node-libgpiod');
 const i2c = require('i2c-bus');
 const recorder = require('node-record-lpcm16');
 const fs = require('fs');
-const { Readable } = require('stream');
-const Speaker = require('speaker');
-const OpenAI = require('openai'); // For Whisper speech-to-text
-const say = require('say'); // For text-to-speech
 const { spawn } = require('child_process');
+const OpenAI = require('openai'); // For Whisper speech-to-text and TTS
 
 // ============================================================================
 // CONFIGURATION
@@ -43,7 +39,9 @@ const CONFIG = {
   AUDIO_SAMPLE_RATE: 16000,
   AUDIO_RECORDING_DURATION: 5000, // ms - maximum recording time
   AUDIO_TEMP_FILE: '/tmp/billy_bass_recording.wav',
-  TTS_OUTPUT_FILE: '/tmp/billy_bass_response.wav',
+  TTS_OUTPUT_FILE: '/tmp/billy_bass_response.mp3',
+  TTS_VOICE: 'onyx', // Options: alloy, echo, fable, onyx, nova, shimmer
+  TTS_MODEL: 'tts-1', // or 'tts-1-hd' for higher quality
   
   // AI Configuration
   AI_MODEL: 'claude-sonnet-4-20250514',
@@ -204,21 +202,26 @@ class AudioManager {
     }
   }
   
-  // Generate speech from text using system TTS
+  // Generate speech from text using OpenAI TTS
   async textToSpeech(text) {
-    return new Promise((resolve, reject) => {
+    try {
       console.log('🗣️  Generating speech...');
       
-      say.export(text, 'Alex', 0.7, CONFIG.TTS_OUTPUT_FILE, (error) => {
-        if (error) {
-          console.error('✗ TTS error:', error);
-          reject(error);
-        } else {
-          console.log('✓ Speech generated');
-          resolve(CONFIG.TTS_OUTPUT_FILE);
-        }
+      const mp3 = await this.openai.audio.speech.create({
+        model: CONFIG.TTS_MODEL,
+        voice: CONFIG.TTS_VOICE,
+        input: text,
       });
-    });
+      
+      const buffer = Buffer.from(await mp3.arrayBuffer());
+      await fs.promises.writeFile(CONFIG.TTS_OUTPUT_FILE, buffer);
+      
+      console.log('✓ Speech generated');
+      return CONFIG.TTS_OUTPUT_FILE;
+    } catch (error) {
+      console.error('✗ TTS error:', error.message);
+      throw error;
+    }
   }
   
   // Play audio file and return duration
@@ -297,13 +300,12 @@ class FishAI {
 
 class BillyBass {
   constructor() {
-    this.chip = new Chip(0); // GPIO chip 0
-    this.button = this.chip.getLine(CONFIG.BUTTON_PIN);
     this.robotHat = new RobotHat(CONFIG.I2C_BUS, CONFIG.I2C_ADDRESS);
     this.audioManager = new AudioManager();
     this.fishAI = new FishAI();
     this.isProcessing = false;
     this.buttonWatcher = null;
+    this.gpioMonitor = null;
   }
   
   // Initialize all systems
@@ -316,18 +318,31 @@ class BillyBass {
       return false;
     }
     
-    // Configure button as input with pull-up
-    this.button.requestInputMode();
+    // Set up button monitoring using gpiod CLI tools
+    // Button is active-low (reads 0 when pressed) with internal pull-up
+    let lastValue = 1;
     
-    // Set up button monitoring with polling (gpiod doesn't have native watch)
     this.buttonWatcher = setInterval(() => {
-      const value = this.button.getValue();
-      if (value === 0 && !this.isProcessing) { // Button pressed (active low with pull-up)
-        this.handleButtonPress();
-      }
+      // Use gpioget to read the button state
+      const gpio = spawn('gpioget', ['gpiochip0', String(CONFIG.BUTTON_PIN)]);
+      
+      gpio.stdout.on('data', (data) => {
+        const value = parseInt(data.toString().trim());
+        
+        // Detect button press (falling edge: 1 -> 0)
+        if (value === 0 && lastValue === 1 && !this.isProcessing) {
+          this.handleButtonPress();
+        }
+        
+        lastValue = value;
+      });
+      
+      gpio.stderr.on('data', (data) => {
+        // Ignore errors during normal operation
+      });
     }, 100); // Poll every 100ms
     
-    console.log('✓ Button monitoring started');
+    console.log('✓ Button monitoring started (GPIO ' + CONFIG.BUTTON_PIN + ')');
     console.log('\n🎣 Billy Bass is ready! Press the button to start.\n');
     return true;
   }
@@ -477,10 +492,6 @@ class BillyBass {
     
     this.robotHat.stopAll();
     this.robotHat.close();
-    
-    // Release GPIO resources
-    this.button.release();
-    this.chip.close();
     
     // Clean up temp files
     try {

@@ -82,12 +82,9 @@ async function testButton() {
   log(colors.cyan, '\n=== Testing Button (GPIO 17) ===');
   
   try {
-    const { Chip } = require('node-libgpiod');
-    const chip = new Chip(0);
-    const button = chip.getLine(17);
-    button.requestInputMode();
+    const { spawn } = require('child_process');
     
-    log(colors.green, '✓ GPIO initialized');
+    log(colors.green, '✓ GPIO tools available');
     log(colors.yellow, '\nPress the button 3 times (you have 10 seconds)...');
     
     let pressCount = 0;
@@ -95,33 +92,41 @@ async function testButton() {
     const target = 3;
     const startTime = Date.now();
     
-    while (Date.now() - startTime < 10000 && pressCount < target) {
-      const value = button.getValue();
+    const checkButton = setInterval(() => {
+      const gpio = spawn('gpioget', ['gpiochip0', '17']);
       
-      // Detect falling edge (button press with pull-up resistor)
-      if (value === 0 && lastValue === 1) {
-        pressCount++;
-        log(colors.green, `✓ Button press detected! (${pressCount}/${target})`);
-        await sleep(200); // Debounce
+      gpio.stdout.on('data', (data) => {
+        const value = parseInt(data.toString().trim());
+        
+        // Detect falling edge (button press with pull-up resistor)
+        if (value === 0 && lastValue === 1) {
+          pressCount++;
+          log(colors.green, `✓ Button press detected! (${pressCount}/${target})`);
+        }
+        
+        lastValue = value;
+      });
+      
+      // Check timeout or success
+      if (Date.now() - startTime > 10000 || pressCount >= target) {
+        clearInterval(checkButton);
+        
+        if (pressCount >= target) {
+          log(colors.green, '✓ Button test passed!');
+        } else {
+          log(colors.red, '✗ Button test failed - not enough presses detected');
+          log(colors.yellow, '  Check button wiring to GPIO 17 (Pin 11)');
+        }
       }
-      
-      lastValue = value;
-      await sleep(50); // Poll interval
-    }
-    
-    button.release();
-    chip.close();
-    
-    if (pressCount >= target) {
-      log(colors.green, '✓ Button test passed!');
-    } else {
-      log(colors.red, '✗ Button test failed - not enough presses detected');
-      log(colors.yellow, '  Check button wiring to GPIO 17 (Pin 11)');
-    }
+    }, 100);
     
   } catch (error) {
     log(colors.red, '✗ Button test error: ' + error.message);
+    log(colors.yellow, '  Make sure gpiod tools are installed: sudo apt install gpiod');
   }
+  
+  // Wait for test to complete
+  await sleep(11000);
 }
 
 // ============================================================================

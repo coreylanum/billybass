@@ -29,7 +29,7 @@ sudo raspi-config
 ```bash
 # System packages
 sudo apt update
-sudo apt install -y git libasound2-dev sox libsox-fmt-all i2c-tools alsa-utils libgpiod-dev gpiod
+sudo apt install -y git libasound2-dev sox libsox-fmt-all i2c-tools alsa-utils gpiod
 
 # Node.js
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
@@ -157,10 +157,22 @@ const CONFIG = {
   BODY_TURN_DURATION: 2000, // Turn time (ms)
   AUDIO_RECORDING_DURATION: 5000, // Listen time (ms)
   
+  // Text-to-Speech Voice
+  TTS_VOICE: 'onyx', // Options: alloy, echo, fable, onyx, nova, shimmer
+  TTS_MODEL: 'tts-1', // or 'tts-1-hd' for better quality
+  
   // AI personality
   AI_SYSTEM_PROMPT: `You are Billy Bass...`
 };
 ```
+
+**TTS Voice Options:**
+- `alloy` - Neutral, balanced
+- `echo` - Warm, upbeat
+- `fable` - British, expressive
+- `onyx` - Deep, authoritative (default)
+- `nova` - Energetic, youthful
+- `shimmer` - Soft, gentle
 
 ## 7. Auto-Start on Boot (Optional)
 

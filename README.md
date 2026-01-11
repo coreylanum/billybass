@@ -63,7 +63,7 @@ M3 (Motor 3) → Tail Motor (wagging)
 sudo apt update && sudo apt upgrade -y
 
 # Install required system packages
-sudo apt install -y git libasound2-dev sox libsox-fmt-all i2c-tools alsa-utils libgpiod-dev gpiod
+sudo apt install -y git libasound2-dev sox libsox-fmt-all i2c-tools alsa-utils gpiod
 ```
 
 ### 2. Enable I2C
@@ -260,11 +260,27 @@ const CONFIG = {
   // Audio
   AUDIO_RECORDING_DURATION: 5000, // Recording time (ms)
   
+  // Text-to-Speech Voice
+  TTS_VOICE: 'onyx', // Options: alloy, echo, fable, onyx, nova, shimmer
+  TTS_MODEL: 'tts-1', // or 'tts-1-hd' for higher quality
+  
   // AI
   AI_MODEL: 'claude-sonnet-4-20250514',
   AI_SYSTEM_PROMPT: `You are Billy Bass, a wise-cracking animatronic fish...`
 };
 ```
+
+### Change TTS Voice
+
+OpenAI offers 6 different voices:
+- **alloy** - Neutral and balanced
+- **echo** - Warm and upbeat
+- **fable** - British accent, expressive
+- **onyx** - Deep and authoritative (default for Billy)
+- **nova** - Energetic and youthful
+- **shimmer** - Soft and gentle
+
+Just change `TTS_VOICE: 'onyx'` to any of the above!
 
 ### Change AI Personality
 
