@@ -29,7 +29,7 @@ sudo raspi-config
 ```bash
 # System packages
 sudo apt update
-sudo apt install -y git libasound2-dev sox libsox-fmt-all alsa-utils gpiod
+sudo apt install -y git libasound2-dev sox libsox-fmt-all alsa-utils gpiod mpg123
 
 # Node.js
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -

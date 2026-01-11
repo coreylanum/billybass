@@ -63,7 +63,7 @@ M3 (Motor 3) → Tail Motor (wagging)
 sudo apt update && sudo apt upgrade -y
 
 # Install required system packages
-sudo apt install -y git libasound2-dev sox libsox-fmt-all alsa-utils gpiod
+sudo apt install -y git libasound2-dev sox libsox-fmt-all alsa-utils gpiod mpg123
 ```
 
 ### 2. Install Node.js

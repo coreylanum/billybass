@@ -282,8 +282,9 @@ class AudioManager {
     return new Promise((resolve, reject) => {
       console.log('🔊 Playing audio...');
       
-      // Use aplay for reliable playback on Raspberry Pi
-      const player = spawn('aplay', ['-q', audioFilePath]);
+      // Use mpg123 for MP3 files, aplay for WAV
+      const isMp3 = audioFilePath.endsWith('.mp3');
+      const player = spawn(isMp3 ? 'mpg123' : 'aplay', ['-q', audioFilePath]);
       
       player.on('close', (code) => {
         if (code === 0) {
