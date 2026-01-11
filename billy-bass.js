@@ -204,9 +204,8 @@ class AudioManager {
         sampleRate: CONFIG.AUDIO_SAMPLE_RATE,
         channels: 1,
         audioType: 'wav',
-        silence: '2.0', // Stop after 2 seconds of silence
-        threshold: 0.5,
         device: 'hw:3,0' // Hard-coded USB audio device
+        // Removed silence detection - record full duration
       });
       
       const audioFile = fs.createWriteStream(CONFIG.AUDIO_TEMP_FILE, { encoding: 'binary' });
@@ -220,17 +219,29 @@ class AudioManager {
         recording.stop();
       }, duration);
       
-      this.recordingStream.on('close', () => {
+      // Wait for stream to fully close
+      audioFile.on('finish', () => {
         clearTimeout(timeout);
         this.isRecording = false;
         console.log('✓ Recording complete');
-        resolve(CONFIG.AUDIO_TEMP_FILE);
+        
+        // Small delay to ensure file is fully written
+        setTimeout(() => {
+          resolve(CONFIG.AUDIO_TEMP_FILE);
+        }, 100);
       });
       
       this.recordingStream.on('error', (error) => {
         clearTimeout(timeout);
         this.isRecording = false;
         console.error('✗ Recording error:', error);
+        reject(error);
+      });
+      
+      audioFile.on('error', (error) => {
+        clearTimeout(timeout);
+        this.isRecording = false;
+        console.error('✗ File write error:', error);
         reject(error);
       });
     });
@@ -303,15 +314,38 @@ class AudioManager {
   }
   
   // Get audio file duration in milliseconds
-  getAudioDuration(audioFilePath) {
-    try {
-      const stats = fs.statSync(audioFilePath);
-      // Rough estimation: filesize / (sampleRate * bytesPerSample * channels)
-      const duration = (stats.size / (CONFIG.AUDIO_SAMPLE_RATE * 2 * 1)) * 1000;
-      return duration;
-    } catch (error) {
-      return 3000; // Default fallback
-    }
+  async getAudioDuration(audioFilePath) {
+    return new Promise((resolve) => {
+      // Use ffprobe to get exact duration for MP3 files
+      const ffprobe = spawn('ffprobe', [
+        '-v', 'error',
+        '-show_entries', 'format=duration',
+        '-of', 'default=noprint_wrappers=1:nokey=1',
+        audioFilePath
+      ]);
+      
+      let output = '';
+      
+      ffprobe.stdout.on('data', (data) => {
+        output += data.toString();
+      });
+      
+      ffprobe.on('close', (code) => {
+        if (code === 0 && output.trim()) {
+          const seconds = parseFloat(output.trim());
+          resolve(seconds * 1000); // Convert to milliseconds
+        } else {
+          // Fallback: estimate 3 seconds for typical TTS response
+          console.log('⚠️  Could not determine audio duration, using fallback');
+          resolve(3000);
+        }
+      });
+      
+      ffprobe.on('error', () => {
+        // ffprobe not installed, use fallback
+        resolve(3000);
+      });
+    });
   }
 }
 
@@ -374,14 +408,11 @@ class BillyBass {
     
     // Set up button monitoring using gpiod CLI tools
     // Button is active-low (reads 0 when pressed) with internal pull-up
-    let lastValue = 1;
+    let lastValue = await this.readGPIO(CONFIG.BUTTON_PIN);
     
-    this.buttonWatcher = setInterval(() => {
-      // Use gpioget to read the button state
-      const gpio = spawn('gpioget', ['gpiochip0', String(CONFIG.BUTTON_PIN)]);
-      
-      gpio.stdout.on('data', (data) => {
-        const value = parseInt(data.toString().trim());
+    this.buttonWatcher = setInterval(async () => {
+      try {
+        const value = await this.readGPIO(CONFIG.BUTTON_PIN);
         
         // Detect button press (falling edge: 1 -> 0)
         if (value === 0 && lastValue === 1 && !this.isProcessing) {
@@ -389,16 +420,36 @@ class BillyBass {
         }
         
         lastValue = value;
-      });
-      
-      gpio.stderr.on('data', (data) => {
-        // Ignore errors during normal operation
-      });
+      } catch (error) {
+        // Ignore read errors during polling
+      }
     }, 100); // Poll every 100ms
     
     console.log('✓ Button monitoring started (GPIO ' + CONFIG.BUTTON_PIN + ')');
     console.log('\n🎣 Billy Bass is ready! Press the button to start.\n');
     return true;
+  }
+  
+  // Helper: Read GPIO pin value
+  async readGPIO(pin) {
+    return new Promise((resolve, reject) => {
+      const gpio = spawn('gpioget', ['gpiochip0', String(pin)]);
+      let output = '';
+      
+      gpio.stdout.on('data', (data) => {
+        output += data.toString();
+      });
+      
+      gpio.on('close', (code) => {
+        if (code === 0) {
+          resolve(parseInt(output.trim()));
+        } else {
+          reject(new Error(`gpioget failed with code ${code}`));
+        }
+      });
+      
+      gpio.on('error', reject);
+    });
   }
   
   // Main interaction sequence
@@ -471,13 +522,14 @@ class BillyBass {
   async speakWithAnimation(audioFile) {
     console.log('🎭 Speaking with animation...\n');
     
+    // Get audio duration
+    const duration = await this.audioManager.getAudioDuration(audioFile);
+    
     // Start playback
     const playbackPromise = this.audioManager.playAudio(audioFile);
     
     // Animate mouth and tail during speech
-    const animationPromise = this.animateSpeech(
-      this.audioManager.getAudioDuration(audioFile)
-    );
+    const animationPromise = this.animateSpeech(duration);
     
     // Wait for both to complete
     await Promise.all([playbackPromise, animationPromise]);
