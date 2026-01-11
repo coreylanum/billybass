@@ -243,7 +243,7 @@ Edit the `CONFIG` section in `billy-bass.js`:
 const CONFIG = {
   // Motor Speeds (0-100)
   BODY_TURN_SPEED: 60,      // Body rotation speed
-  BODY_TURN_DURATION: 1000, // How long to turn (ms) - ADJUST to match your fish!
+  BODY_TURN_DURATION: 1500, // How long to turn (ms) - ADJUST to match your fish!
   MOUTH_SPEED: 70,          // Mouth movement speed
   TAIL_SPEED: 50,           // Tail wagging speed
   
@@ -260,7 +260,16 @@ const CONFIG = {
 };
 ```
 
-**Important:** Adjust `BODY_TURN_DURATION` so the motor stops BEFORE hitting the physical limit. Start with 1000ms (1 second) and adjust based on your fish's mechanics. If you hear grinding, reduce the duration!
+**Important:** Adjust `BODY_TURN_DURATION` to match your fish's turning range. The motor turns for this duration, then uses electrical braking to hold position against the return spring. This prevents both grinding (from continuous running) and spring-back (from stopping). If the motor still reaches its physical limit, reduce the duration. Start with 1500ms and adjust as needed.
+
+### How Motor Braking Works
+
+The Billy Bass has a spring that returns the body to its original position. To hold the fish facing forward during the conversation:
+- **Turn:** Motor runs forward to turn fish toward user
+- **Hold:** Motor enters "brake mode" (both pins HIGH) - creates electrical resistance to hold against spring
+- **Return:** Motor coasts (both pins LOW), spring pulls fish back, motor briefly assists
+
+This mimics the original Billy Bass behavior!
 
 ### Change TTS Voice
 

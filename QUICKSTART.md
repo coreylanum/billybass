@@ -157,7 +157,7 @@ Edit `billy-bass.js` CONFIG section:
 const CONFIG = {
   // Speed adjustments (0-100)
   BODY_TURN_SPEED: 60,      // Rotation speed
-  BODY_TURN_DURATION: 1000, // Turn time (ms) - ADJUST to match your fish!
+  BODY_TURN_DURATION: 1500, // Turn time (ms) - ADJUST to match your fish!
   MOUTH_SPEED: 70,          // Mouth animation
   TAIL_SPEED: 50,           // Tail wagging
   
@@ -173,7 +173,7 @@ const CONFIG = {
 };
 ```
 
-**⚠️ Important:** Adjust `BODY_TURN_DURATION` to prevent grinding! Start at 1000ms and reduce if you hear the motor hitting its limit.
+**⚠️ Important:** The motor uses electrical "brake mode" to hold position against the return spring (like the original Billy Bass). Adjust `BODY_TURN_DURATION` to prevent hitting physical limit. Start at 1500ms and reduce if grinding occurs.
 
 **TTS Voice Options:**
 - `alloy` - Neutral, balanced

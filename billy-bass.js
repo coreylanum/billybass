@@ -36,7 +36,7 @@ const CONFIG = {
   
   // Motor Speeds (0-100)
   BODY_TURN_SPEED: 60,
-  BODY_TURN_DURATION: 1000, // ms - reduced to prevent grinding at physical limit
+  BODY_TURN_DURATION: 1500, // ms - adjust to match your fish's turning range
   MOUTH_SPEED: 70,
   TAIL_SPEED: 50,
   
@@ -117,7 +117,7 @@ class MotorController {
   
   // Set motor speed and direction
   // motor: 'body', 'mouth', or 'tail'
-  // speed: -100 to 100 (negative = reverse)
+  // speed: -100 to 100 (negative = reverse), or 'brake' to hold position
   async setMotor(motorName, speed) {
     if (!this.initialized) {
       console.error('Motor Controller not initialized');
@@ -130,22 +130,28 @@ class MotorController {
       return;
     }
     
-    // Clamp speed
-    speed = Math.max(-100, Math.min(100, speed));
-    
     try {
-      if (speed === 0) {
-        // Stop: both pins LOW
-        await this.setGPIOValue(motor.pin1, 0);
-        await this.setGPIOValue(motor.pin2, 0);
-      } else if (speed > 0) {
-        // Forward: pin1 HIGH, pin2 LOW
+      if (speed === 'brake') {
+        // Brake mode: both pins HIGH = electrical brake to hold position against spring
         await this.setGPIOValue(motor.pin1, 1);
+        await this.setGPIOValue(motor.pin2, 1);
+      } else if (speed === 0) {
+        // Coast: both pins LOW (motor freewheels, spring returns fish)
+        await this.setGPIOValue(motor.pin1, 0);
         await this.setGPIOValue(motor.pin2, 0);
       } else {
-        // Reverse: pin1 LOW, pin2 HIGH
-        await this.setGPIOValue(motor.pin1, 0);
-        await this.setGPIOValue(motor.pin2, 1);
+        // Clamp speed
+        speed = Math.max(-100, Math.min(100, speed));
+        
+        if (speed > 0) {
+          // Forward: pin1 HIGH, pin2 LOW
+          await this.setGPIOValue(motor.pin1, 1);
+          await this.setGPIOValue(motor.pin2, 0);
+        } else {
+          // Reverse: pin1 LOW, pin2 HIGH
+          await this.setGPIOValue(motor.pin1, 0);
+          await this.setGPIOValue(motor.pin2, 1);
+        }
       }
       
       // Note: We're using full speed (PWM always HIGH)
@@ -482,17 +488,16 @@ class BillyBass {
     }
   }
   
-  // Turn the fish toward the user and HOLD position
+  // Turn the fish toward the user and hold with brake
   async turnTowardUser() {
     console.log('↻ Turning toward user...');
     
     await this.motorController.setMotor('body', CONFIG.BODY_TURN_SPEED);
-    
     await this.sleep(CONFIG.BODY_TURN_DURATION);
     
-    // DON'T stop motor - keep it running to hold position
-    // Motor will be stopped in returnToIdle()
-    console.log('✓ Positioned (holding)\n');
+    // Use brake mode to hold position against spring
+    await this.motorController.setMotor('body', 'brake');
+    console.log('✓ Positioned (braking to hold)\n');
   }
   
   // Listen for user speech
@@ -555,13 +560,13 @@ class BillyBass {
   async returnToIdle() {
     console.log('⏮️  Returning to idle position...');
     
-    // First stop the holding motor
+    // Release brake (coast) - spring will help return fish
     await this.motorController.stopMotor('body');
-    await this.sleep(100); // Brief pause
+    await this.sleep(200); // Let spring start the return
     
-    // Turn back (reverse direction)
+    // Briefly assist with reverse to ensure full return
     await this.motorController.setMotor('body', -CONFIG.BODY_TURN_SPEED);
-    await this.sleep(CONFIG.BODY_TURN_DURATION);
+    await this.sleep(CONFIG.BODY_TURN_DURATION / 2); // Half duration since spring helps
     
     // Stop all motors
     await this.motorController.stopAll();

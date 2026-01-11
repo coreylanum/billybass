@@ -188,9 +188,10 @@ Raspberry Pi USB Port → USB Audio Interface
 6. **Audio Playback**: Uses `mpg123` for MP3 files (OpenAI TTS output)
 7. **Audio Duration**: Uses `ffprobe` (from ffmpeg) to get exact MP3 duration for animation timing
 8. **Text-to-Speech**: OpenAI TTS API with selectable voices (onyx, alloy, echo, fable, nova, shimmer)
-9. **Motor Position Holding**: Body motor stays energized during interaction to hold fish position
-10. **Motor Speeds**: Currently full speed (PWM pins held HIGH). For variable speed, hardware PWM needed
-11. **Power**: Ensure power supply can handle motor current draw (typically 1-2A total)
+9. **Motor Brake Mode**: Body motor uses electrical braking (both pins HIGH) to hold position against the return spring
+10. **Motor Return**: Spring assists return to idle - motor only needs half duration on return
+11. **Motor Speeds**: Currently full speed (PWM pins held HIGH). For variable speed, hardware PWM needed
+12. **Power**: Ensure power supply can handle motor current draw (typically 1-2A total)
 
 ## Safety Considerations
 
