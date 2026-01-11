@@ -2,7 +2,6 @@
 // Requires Node.js 18+ on Raspberry Pi
 
 const Anthropic = require('@anthropic-ai/sdk');
-const i2c = require('i2c-bus');
 const recorder = require('node-record-lpcm16');
 const fs = require('fs');
 const { spawn } = require('child_process');
@@ -20,14 +19,21 @@ const CONFIG = {
   // GPIO Configuration
   BUTTON_PIN: 17, // GPIO 17 (Physical Pin 11)
   
-  // I2C Configuration for 4WD Robot Hat
-  I2C_BUS: 20,
-  I2C_ADDRESS: 0x14, // Default address for CKK0018
+  // Motor Control GPIO Pins (DRV8833 drivers)
+  // Body Motor = Motor A1 (DRV8833 #1)
+  MOTOR_BODY_PIN1: 17,
+  MOTOR_BODY_PIN2: 27,
+  MOTOR_BODY_PWM: 12,
   
-  // Motor Channels (on Robot Hat)
-  MOTOR_BODY: 0,   // M1 - Turns fish toward user
-  MOTOR_MOUTH: 1,  // M2 - Mouth animation
-  MOTOR_TAIL: 2,   // M3 - Tail wagging
+  // Mouth Motor = Motor B1 (DRV8833 #1)  
+  MOTOR_MOUTH_PIN1: 22,
+  MOTOR_MOUTH_PIN2: 23,
+  MOTOR_MOUTH_PWM: 12, // Shares PWM with Body
+  
+  // Tail Motor = Motor A2 (DRV8833 #2)
+  MOTOR_TAIL_PIN1: 24,
+  MOTOR_TAIL_PIN2: 25,
+  MOTOR_TAIL_PWM: 13,
   
   // Motor Speeds (0-100)
   BODY_TURN_SPEED: 60,
@@ -52,82 +58,129 @@ Keep it family-friendly and fun!`
 };
 
 // ============================================================================
-// ROBOT HAT MOTOR CONTROLLER
+// GPIO MOTOR CONTROLLER (DRV8833)
 // ============================================================================
 
-class RobotHat {
-  constructor(busNumber, address) {
-    this.bus = i2c.openSync(busNumber);
-    this.address = address;
+class MotorController {
+  constructor() {
     this.initialized = false;
+    this.motors = {
+      body: { pin1: CONFIG.MOTOR_BODY_PIN1, pin2: CONFIG.MOTOR_BODY_PIN2, pwm: CONFIG.MOTOR_BODY_PWM },
+      mouth: { pin1: CONFIG.MOTOR_MOUTH_PIN1, pin2: CONFIG.MOTOR_MOUTH_PIN2, pwm: CONFIG.MOTOR_MOUTH_PWM },
+      tail: { pin1: CONFIG.MOTOR_TAIL_PIN1, pin2: CONFIG.MOTOR_TAIL_PIN2, pwm: CONFIG.MOTOR_TAIL_PWM }
+    };
   }
   
-  // Initialize the motor controller
+  // Initialize GPIO pins for motor control
   async init() {
     try {
-      // The CKK0018 uses PCA9685-style PWM control
-      // Register 0x00 = MODE1, we'll set it to normal mode
-      this.bus.writeByteSync(this.address, 0x00, 0x00);
+      // Set all motor direction pins as outputs (low by default)
+      for (const motor of Object.values(this.motors)) {
+        await this.setGPIOMode(motor.pin1, 'out');
+        await this.setGPIOMode(motor.pin2, 'out');
+        await this.setGPIOValue(motor.pin1, 0);
+        await this.setGPIOValue(motor.pin2, 0);
+      }
       
-      // Set PWM frequency for motors (~1000 Hz)
-      // Register 0xFE = PRE_SCALE
-      this.bus.writeByteSync(this.address, 0xFE, 0x79);
+      // Set PWM pins (NSLEEP) - these enable the motor drivers
+      await this.setGPIOMode(CONFIG.MOTOR_BODY_PWM, 'out');
+      await this.setGPIOMode(CONFIG.MOTOR_TAIL_PWM, 'out');
+      
+      // Enable both DRV8833 chips (HIGH = enabled)
+      await this.setGPIOValue(CONFIG.MOTOR_BODY_PWM, 1);
+      await this.setGPIOValue(CONFIG.MOTOR_TAIL_PWM, 1);
       
       this.initialized = true;
-      console.log('✓ Robot Hat initialized');
+      console.log('✓ Motor Controller initialized');
       return true;
     } catch (error) {
-      console.error('✗ Failed to initialize Robot Hat:', error.message);
+      console.error('✗ Failed to initialize Motor Controller:', error.message);
       return false;
     }
   }
   
+  // Helper: Set GPIO pin mode using gpiod
+  async setGPIOMode(pin, mode) {
+    // gpiod doesn't require explicit mode setting - done when accessing
+    return Promise.resolve();
+  }
+  
+  // Helper: Set GPIO pin value
+  async setGPIOValue(pin, value) {
+    return new Promise((resolve, reject) => {
+      const cmd = spawn('gpioset', ['gpiochip0', `${pin}=${value}`]);
+      cmd.on('close', (code) => {
+        if (code === 0) resolve();
+        else reject(new Error(`gpioset failed with code ${code}`));
+      });
+      cmd.on('error', reject);
+    });
+  }
+  
   // Set motor speed and direction
-  // motor: 0-3 (M1-M4)
+  // motor: 'body', 'mouth', or 'tail'
   // speed: -100 to 100 (negative = reverse)
-  setMotor(motor, speed) {
+  async setMotor(motorName, speed) {
     if (!this.initialized) {
-      console.error('Robot Hat not initialized');
+      console.error('Motor Controller not initialized');
+      return;
+    }
+    
+    const motor = this.motors[motorName];
+    if (!motor) {
+      console.error(`Unknown motor: ${motorName}`);
       return;
     }
     
     // Clamp speed
     speed = Math.max(-100, Math.min(100, speed));
     
-    // Convert speed to PWM value (0-4095)
-    const pwmValue = Math.abs(speed) * 40.95;
-    const direction = speed >= 0 ? 1 : 0;
-    
     try {
-      // Motor control registers (simplified - adjust based on actual hat specs)
-      const motorBase = 0x20 + (motor * 4);
+      if (speed === 0) {
+        // Stop: both pins LOW
+        await this.setGPIOValue(motor.pin1, 0);
+        await this.setGPIOValue(motor.pin2, 0);
+      } else if (speed > 0) {
+        // Forward: pin1 HIGH, pin2 LOW
+        await this.setGPIOValue(motor.pin1, 1);
+        await this.setGPIOValue(motor.pin2, 0);
+      } else {
+        // Reverse: pin1 LOW, pin2 HIGH
+        await this.setGPIOValue(motor.pin1, 0);
+        await this.setGPIOValue(motor.pin2, 1);
+      }
       
-      // Set PWM value
-      this.bus.writeWordSync(this.address, motorBase, Math.round(pwmValue));
-      
-      // Set direction
-      this.bus.writeByteSync(this.address, motorBase + 2, direction);
+      // Note: We're using full speed (PWM always HIGH)
+      // For true PWM speed control, would need to use hardware PWM
+      // or software PWM with rapid pin toggling
       
     } catch (error) {
-      console.error(`Error setting motor ${motor}:`, error.message);
+      console.error(`Error setting motor ${motorName}:`, error.message);
     }
   }
   
   // Stop a specific motor
-  stopMotor(motor) {
-    this.setMotor(motor, 0);
+  async stopMotor(motorName) {
+    await this.setMotor(motorName, 0);
   }
   
   // Stop all motors
-  stopAll() {
-    for (let i = 0; i < 4; i++) {
-      this.stopMotor(i);
-    }
+  async stopAll() {
+    await this.setMotor('body', 0);
+    await this.setMotor('mouth', 0);
+    await this.setMotor('tail', 0);
   }
   
-  close() {
-    this.stopAll();
-    this.bus.closeSync();
+  // Cleanup
+  async close() {
+    await this.stopAll();
+    // Disable motor drivers
+    try {
+      await this.setGPIOValue(CONFIG.MOTOR_BODY_PWM, 0);
+      await this.setGPIOValue(CONFIG.MOTOR_TAIL_PWM, 0);
+    } catch (error) {
+      // Ignore cleanup errors
+    }
   }
 }
 
@@ -300,7 +353,7 @@ class FishAI {
 
 class BillyBass {
   constructor() {
-    this.robotHat = new RobotHat(CONFIG.I2C_BUS, CONFIG.I2C_ADDRESS);
+    this.motorController = new MotorController();
     this.audioManager = new AudioManager();
     this.fishAI = new FishAI();
     this.isProcessing = false;
@@ -312,9 +365,9 @@ class BillyBass {
   async init() {
     console.log('🐟 Initializing Billy Bass...\n');
     
-    const success = await this.robotHat.init();
+    const success = await this.motorController.init();
     if (!success) {
-      console.error('Failed to initialize. Check I2C connection.');
+      console.error('Failed to initialize motors. Check GPIO connections.');
       return false;
     }
     
@@ -393,11 +446,11 @@ class BillyBass {
   async turnTowardUser() {
     console.log('↻ Turning toward user...');
     
-    this.robotHat.setMotor(CONFIG.MOTOR_BODY, CONFIG.BODY_TURN_SPEED);
+    await this.motorController.setMotor('body', CONFIG.BODY_TURN_SPEED);
     
     await this.sleep(CONFIG.BODY_TURN_DURATION);
     
-    this.robotHat.stopMotor(CONFIG.MOTOR_BODY);
+    await this.motorController.stopMotor('body');
     console.log('✓ Positioned\n');
   }
   
@@ -438,22 +491,22 @@ class BillyBass {
     while (Date.now() - startTime < duration) {
       // Toggle mouth
       mouthOpen = !mouthOpen;
-      this.robotHat.setMotor(
-        CONFIG.MOTOR_MOUTH,
+      await this.motorController.setMotor(
+        'mouth',
         mouthOpen ? CONFIG.MOUTH_SPEED : -CONFIG.MOUTH_SPEED
       );
       
       // Wag tail
       const tailSpeed = Math.random() > 0.5 ? CONFIG.TAIL_SPEED : -CONFIG.TAIL_SPEED;
-      this.robotHat.setMotor(CONFIG.MOTOR_TAIL, tailSpeed);
+      await this.motorController.setMotor('tail', tailSpeed);
       
       // Wait before next movement
       await this.sleep(150 + Math.random() * 100);
     }
     
     // Stop animation
-    this.robotHat.stopMotor(CONFIG.MOTOR_MOUTH);
-    this.robotHat.stopMotor(CONFIG.MOTOR_TAIL);
+    await this.motorController.stopMotor('mouth');
+    await this.motorController.stopMotor('tail');
   }
   
   // Return to idle position
@@ -461,11 +514,11 @@ class BillyBass {
     console.log('⏮️  Returning to idle position...');
     
     // Turn back
-    this.robotHat.setMotor(CONFIG.MOTOR_BODY, -CONFIG.BODY_TURN_SPEED);
+    await this.motorController.setMotor('body', -CONFIG.BODY_TURN_SPEED);
     await this.sleep(CONFIG.BODY_TURN_DURATION);
     
     // Stop all motors
-    this.robotHat.stopAll();
+    await this.motorController.stopAll();
     console.log('✓ Back to idle\n');
   }
   
@@ -490,8 +543,8 @@ class BillyBass {
       clearInterval(this.buttonWatcher);
     }
     
-    this.robotHat.stopAll();
-    this.robotHat.close();
+    await this.motorController.stopAll();
+    await this.motorController.close();
     
     // Clean up temp files
     try {

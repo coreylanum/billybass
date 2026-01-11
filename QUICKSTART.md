@@ -29,7 +29,7 @@ sudo raspi-config
 ```bash
 # System packages
 sudo apt update
-sudo apt install -y git libasound2-dev sox libsox-fmt-all i2c-tools alsa-utils gpiod
+sudo apt install -y git libasound2-dev sox libsox-fmt-all alsa-utils gpiod
 
 # Node.js
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
@@ -74,11 +74,11 @@ node test-components.js
 ```
 
 Test each component:
-1. I2C Connection (should find device at 0x14)
-2. Button (press 3 times)
-3. Motors (verify each motor moves)
-4. Audio Recording (speak and hear playback)
-5. API Keys (verify both are set)
+1. Button (press 3 times)
+2. Audio Recording (speak and hear playback)
+3. API Keys (verify both are set)
+
+**Note:** Motor testing requires running the main program or manual GPIO testing.
 
 ## 4. Run Billy Bass! 🎣
 
@@ -104,11 +104,13 @@ Expected output:
 
 ### No motor movement?
 ```bash
-# Check I2C
-i2cdetect -y 20  # Should show 0x14
+# Check GPIO tools are installed
+which gpioset gpioget
 
-# Check power
-# Verify 6-12V on Robot Hat power terminal
+# Test manually setting a GPIO
+gpioset gpiochip0 17=1
+
+# Verify power supply (6-12V to Robot Hat)
 ```
 
 ### Button not working?

@@ -4,7 +4,7 @@
 
 ### Hardware Components:
 - Raspberry Pi (any model with 40-pin GPIO)
-- 4WD Robot Hat (CKK0018)
+- 4WD Robot Hat (CKK0018) with DRV8833 motor drivers
 - Billy Big Mouth Bass shell with 3 DC motors
 - USB Audio Interface
 - Momentary push button (if not using original fish button)
@@ -25,11 +25,23 @@
 ┌─────────────────────────────────────┐
 │       4WD Robot Hat (CKK0018)       │
 │                                     │
-│  • I2C Address: 0x14 (default)      │
+│  • DRV8833 Motor Drivers (GPIO)     │
 │  • Motor Outputs: M1, M2, M3, M4    │
 │  • Power Input: 6-12V DC            │
 └─────────────────────────────────────┘
 ```
+
+**Important:** This hat uses GPIO control, NOT I2C!
+
+### GPIO Pin Mapping for Motors:
+
+**DRV8833 #1 (GPIO 12 PWM/Enable):**
+- Motor A1 (Body): GPIO 17 & 27 (direction)
+- Motor B1 (Mouth): GPIO 22 & 23 (direction)
+
+**DRV8833 #2 (GPIO 13 PWM/Enable):**
+- Motor A2 (Tail): GPIO 24 & 25 (direction)
+- Motor B2 (Unused): GPIO 26 & 16 (direction)
 
 ### 2. DC Motor Connections to Robot Hat
 
@@ -163,11 +175,13 @@ Raspberry Pi USB Port → USB Audio Interface
 
 ## Setup Notes
 
-1. **Robot Hat I2C**: The hat uses I2C address 0x14 by default
-2. **Motor Speeds**: Adjust PWM values (0-100) in code for optimal movement
-3. **Button Debouncing**: Implemented in software (200ms)
-4. **Power**: Ensure power supply can handle motor current draw (typically 1-2A total)
-5. **Audio Device**: Use `arecord -l` and `aplay -l` to identify USB audio card number
+1. **Motor Control**: Uses GPIO pins directly with DRV8833 motor drivers (not I2C!)
+2. **GPIO Tools**: Uses `gpiod` command-line tools (gpioget, gpioset) for GPIO access
+3. **Audio Device**: Hard-coded to hw:3,0 - adjust in code if your device differs
+4. **Text-to-Speech**: OpenAI TTS API with selectable voices (onyx, alloy, echo, fable, nova, shimmer)
+5. **Motor Speeds**: Currently full speed (PWM pins held HIGH). For variable speed, hardware PWM needed
+6. **Button**: GPIO 17 with internal pull-up (active-low)
+7. **Power**: Ensure power supply can handle motor current draw (typically 1-2A total)
 
 ## Safety Considerations
 

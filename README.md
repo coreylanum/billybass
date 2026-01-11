@@ -63,19 +63,19 @@ M3 (Motor 3) → Tail Motor (wagging)
 sudo apt update && sudo apt upgrade -y
 
 # Install required system packages
-sudo apt install -y git libasound2-dev sox libsox-fmt-all i2c-tools alsa-utils gpiod
+sudo apt install -y git libasound2-dev sox libsox-fmt-all alsa-utils gpiod
 ```
 
-### 2. Enable I2C
+### 2. Install Node.js
 
 ```bash
-# Enable I2C interface
-sudo raspi-config
-# Navigate to: Interface Options → I2C → Enable → Reboot
+# Install Node.js 20.x
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
 
-# After reboot, verify I2C is working
-i2cdetect -y 20
-# You should see address 0x14 (or similar) for the Robot Hat
+# Verify installation
+node --version  # Should show v20.x.x
+npm --version   # Should show 10.x.x
 ```
 
 ### 3. Configure USB Audio
@@ -94,19 +94,7 @@ arecord -D hw:3,0 -d 3 test.wav
 aplay test.wav
 ```
 
-### 4. Install Node.js
-
-```bash
-# Install Node.js 20.x
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
-
-# Verify installation
-node --version  # Should show v20.x.x
-npm --version   # Should show 10.x.x
-```
-
-### 5. Clone and Install Project
+### 4. Clone and Install Project
 
 ```bash
 # Create project directory
@@ -121,7 +109,7 @@ npm install
 sudo npm install -g node-gyp
 ```
 
-### 6. Set Up API Keys
+### 5. Set Up API Keys
 
 ```bash
 # Add to your ~/.bashrc or ~/.profile
@@ -328,10 +316,11 @@ sudo systemctl status billy-bass.service
 ## 🐛 Troubleshooting
 
 ### Motors Not Working
-- Check I2C connection: `i2cdetect -y 20`
-- Verify power supply voltage (6-12V)
-- Test individual motors with test script
+- Check GPIO connections (see wiring diagram)
+- Verify power supply voltage (6-12V) to Robot Hat
+- Test individual motors with `gpioset` commands
 - Check motor wire polarity (swap if backwards)
+- Ensure NSLEEP pins (GPIO 12 & 13) are HIGH
 
 ### No Audio Recording
 - Run `arecord -l` to find USB audio device
@@ -348,12 +337,6 @@ sudo systemctl status billy-bass.service
 - Verify API keys are set: `echo $ANTHROPIC_API_KEY`
 - Check API key permissions and credits
 - Test internet connection
-
-### I2C Device Not Found
-- Enable I2C in raspi-config
-- Check physical connection of Robot Hat
-- Try different I2C buses: `i2cdetect -l` to list all buses
-- Your system uses bus 20: `i2cdetect -y 20`
 
 ## 📚 Additional Resources
 

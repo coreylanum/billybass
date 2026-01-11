@@ -23,7 +23,6 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
     "openai": "^4.68.4",
-    "i2c-bus": "^5.2.3",
     "node-record-lpcm16": "^1.0.1"
   },
   "devDependencies": {}
